@@ -1,0 +1,7 @@
+[package]
+name = "scramble"
+version = "0.1.0"
+authors = ["Camden Cheek <ccheek22@gmail.com>"]
+
+[dependencies]
+adb = "0.0.0"
