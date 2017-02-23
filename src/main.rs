@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::collections::HashSet;
-use std::sync::Arc;
+use std::rc::Rc;
 
 struct Tile {
     letter: String,
@@ -68,11 +68,11 @@ impl Board {
 
 struct Word {
     loc_vector: Vec<BoardLocation>,
-    board: Arc<Board>,
+    board: Rc<Board>,
 }
 
 impl Word {
-    pub fn new(board: Arc<Board>) -> Word {
+    pub fn new(board: Rc<Board>) -> Word {
         Word {
             loc_vector: Vec::new(),
             board: board,
@@ -136,7 +136,7 @@ fn grown_words(word: Box<Word>, length: u8) -> Vec<Box<Word>> {
     new_words
 }
 
-fn find_words(board: Arc<Board>) -> Vec<Box<Word>> {
+fn find_words(board: Rc<Board>) -> Vec<Box<Word>> {
     let max_length = 8;
     let mut words: Vec<Box<Word>>  = Vec::new();
     for row in 0..4 {
@@ -191,7 +191,7 @@ fn main() {
                 Tile::new("e".to_string(), 1, 1)];
 
     let board = Board{ grid: [row1, row2, row3, row4] };
-    let mut potential_words = find_words(Arc::new(board));
+    let mut potential_words = find_words(Rc::new(board));
     println!["{}",words.len()];
     potential_words.retain(|x| words.contains(&x.get_string()));
     potential_words.sort_by(|a,b| a.get_score().cmp(&b.get_score()));
