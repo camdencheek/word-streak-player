@@ -3,15 +3,16 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::collections::HashSet;
+use std::sync::Arc;
 
-struct Tile<'a> {
-    letter: &'a str,
+struct Tile {
+    letter: String,
     word_multiplier: u16,
     letter_multiplier: u16,
 }
 
-impl<'a> Tile<'a> {
-    pub fn new(letter: &'a str, letter_multiplier: u16, word_multiplier: u16 ) -> Tile<'a> {
+impl Tile {
+    pub fn new(letter: String, letter_multiplier: u16, word_multiplier: u16 ) -> Tile {
         Tile {
             letter: letter,
             word_multiplier: word_multiplier,
@@ -21,7 +22,7 @@ impl<'a> Tile<'a> {
     }
 
     fn letter_value(&self) -> u16 {
-        self.letter_multiplier * match self.letter {
+        self.letter_multiplier * match self.letter.as_str() {
             "a" => 1, "b" => 4, "c" => 4, "d" => 2, "e" => 1, "f" => 4,
             "g" => 3, "h" => 3, "i" => 1, "j" => 10, "k" => 5, "l" => 2,
             "m" => 4, "n" => 2, "o" => 1, "p" => 4, "qu" => 10, "r" => 1,
@@ -38,11 +39,11 @@ impl Clone for BoardLocation {
     fn clone(&self) -> BoardLocation { *self }
 }
 
-struct Board<'a> {
-    grid: [[&'a Tile<'a>; 4]; 4],
+struct Board {
+    grid: [[Tile; 4]; 4],
 }
 
-impl<'a> Board<'a> {
+impl Board {
     fn get_adjacent_tiles(&self, loc: &BoardLocation) -> Vec<BoardLocation> {
         let mut adjacent: Vec<BoardLocation> = Vec::new();
         for row in (loc.0 as isize)-1..(loc.0 as isize)+2 {
@@ -59,19 +60,19 @@ impl<'a> Board<'a> {
         adjacent
     }
 
-    fn get_tile(&self, loc: &BoardLocation) -> &Tile<'a> {
-        self.grid[loc.0][loc.1]
+    fn get_tile(&self, loc: &BoardLocation) -> &Tile {
+        &self.grid[loc.0][loc.1]
     }
 }
 
 
-struct Word<'a> {
+struct Word {
     loc_vector: Vec<BoardLocation>,
-    board: &'a Board<'a>,
+    board: Arc<Board>,
 }
 
-impl<'a> Word<'a> {
-    pub fn new(board: &'a Board<'a>) -> Word<'a> {
+impl Word {
+    pub fn new(board: Arc<Board>) -> Word {
         Word {
             loc_vector: Vec::new(),
             board: board,
@@ -85,7 +86,7 @@ impl<'a> Word<'a> {
     fn get_string(&self) -> String {
         let mut word = "".to_string();
         for loc in &self.loc_vector {
-            word.push_str(self.board.get_tile(loc).letter);
+            word += &self.board.get_tile(loc).letter
         }
         word
     }
@@ -115,13 +116,13 @@ fn grown_words(word: Box<Word>, length: u8) -> Vec<Box<Word>> {
     let mut new_words: Vec<Box<Word>> = Vec::new();
     for adjacent in word.board.get_adjacent_tiles(&word.loc_vector[word.loc_vector.len() -1]) {
         if !word.uses_loc(&adjacent) {
-            let mut new_word = Word::new(word.board);
+            let mut new_word = Word::new(word.board.clone());
             for loc in &word.loc_vector {
                 new_word.add_tile(*loc);
             }
             new_word.add_tile(adjacent);
             new_words.push(Box::new(new_word));
-            let mut new_new_word = Word::new(word.board);
+            let mut new_new_word = Word::new(word.board.clone());
             for loc in &word.loc_vector {
                 new_new_word.add_tile(*loc);
             }
@@ -135,12 +136,12 @@ fn grown_words(word: Box<Word>, length: u8) -> Vec<Box<Word>> {
     new_words
 }
 
-fn find_words<'a>(board: &'a Board<'a>) -> Vec<Box<Word<'a>>> {
+fn find_words(board: Arc<Board>) -> Vec<Box<Word>> {
     let max_length = 8;
     let mut words: Vec<Box<Word>>  = Vec::new();
     for row in 0..4 {
         for col in 0..4 {
-            let mut new_word = Word::new(board);
+            let mut new_word = Word::new(board.clone());
             new_word.add_tile(BoardLocation(row,col));
             println!["{},{},{}",row,col,new_word.get_string()];
             words.append(&mut grown_words(Box::new(new_word), max_length));
@@ -172,25 +173,25 @@ fn main() {
         }
     }
 
-    let row1 = [&Tile::new("o", 1, 1),
-                &Tile::new("e", 3, 1),
-                &Tile::new("i", 3, 1),
-                &Tile::new("j", 1, 1)];
-    let row2 = [&Tile::new("r", 1, 1),
-                &Tile::new("e", 1, 3),
-                &Tile::new("c", 3, 1),
-                &Tile::new("r", 1, 1)];
-    let row3 = [&Tile::new("d", 1, 1),
-                &Tile::new("a", 1, 1),
-                &Tile::new("s", 1, 1),
-                &Tile::new("a", 1, 1)];
-    let row4 = [&Tile::new("r", 1, 1),
-                &Tile::new("i", 1, 1),
-                &Tile::new("t", 1, 1),
-                &Tile::new("e", 1, 1)];
+    let row1 = [Tile::new("o".to_string(), 1, 1),
+                Tile::new("e".to_string(), 3, 1),
+                Tile::new("i".to_string(), 3, 1),
+                Tile::new("j".to_string(), 1, 1)];
+    let row2 = [Tile::new("r".to_string(), 1, 1),
+                Tile::new("e".to_string(), 1, 3),
+                Tile::new("c".to_string(), 3, 1),
+                Tile::new("r".to_string(), 1, 1)];
+    let row3 = [Tile::new("d".to_string(), 1, 1),
+                Tile::new("a".to_string(), 1, 1),
+                Tile::new("s".to_string(), 1, 1),
+                Tile::new("a".to_string(), 1, 1)];
+    let row4 = [Tile::new("r".to_string(), 1, 1),
+                Tile::new("i".to_string(), 1, 1),
+                Tile::new("t".to_string(), 1, 1),
+                Tile::new("e".to_string(), 1, 1)];
 
     let board = Board{ grid: [row1, row2, row3, row4] };
-    let mut potential_words = find_words(&board);
+    let mut potential_words = find_words(Arc::new(board));
     println!["{}",words.len()];
     potential_words.retain(|x| words.contains(&x.get_string()));
     potential_words.sort_by(|a,b| a.get_score().cmp(&b.get_score()));
