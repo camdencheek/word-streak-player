@@ -195,7 +195,12 @@ fn main() {
     println!["{}",words.len()];
     potential_words.retain(|x| words.contains(&x.get_string()));
     potential_words.sort_by(|a,b| a.get_score().cmp(&b.get_score()));
-    for word in potential_words {
-        println!["{}, {}",word.get_string(), word.get_score()]
+    let mut total_points: u16 = 0;
+    for word in &potential_words {
+        println!["{}, {}",word.get_string(), word.get_score()];
+        total_points += word.get_score();
     }
+
+    println!["Total score: {}", total_points];
+
 }
