@@ -1,28 +1,33 @@
+extern crate image;
+extern crate img_hash;
+
 use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::collections::HashSet;
 use std::sync::Arc;
+use std::thread;
+use std::process::Command;
+use img_hash::{ImageHash, HashType};
+use image::{ImageBuffer,DynamicImage,imageops};
+
 
 struct Tile {
     letter: String,
-    word_multiplier: u16,
-    letter_multiplier: u16,
+    multiplier: Multiplier,
 }
 
 impl Tile {
-    pub fn new(letter: String, letter_multiplier: u16, word_multiplier: u16 ) -> Tile {
+    pub fn new(letter: String, multiplier: Multiplier ) -> Tile {
         Tile {
             letter: letter,
-            word_multiplier: word_multiplier,
-            letter_multiplier: letter_multiplier,
+            multiplier: multiplier,
         }
-
     }
 
     fn letter_value(&self) -> u16 {
-        self.letter_multiplier * match self.letter.as_str() {
+        match self.letter.as_str() {
             "a" => 1, "b" => 4, "c" => 4, "d" => 2, "e" => 1, "f" => 4,
             "g" => 3, "h" => 3, "i" => 1, "j" => 10, "k" => 5, "l" => 2,
             "m" => 4, "n" => 2, "o" => 1, "p" => 4, "qu" => 10, "r" => 1,
@@ -32,7 +37,6 @@ impl Tile {
     }
 }
 
-#[derive(Copy)]
 struct BoardLocation(usize,usize);
 
 impl Clone for BoardLocation {
@@ -96,8 +100,15 @@ impl Word {
         let mut multiplier = 1;
         for loc in &self.loc_vector {
             let tile = self.board.get_tile(loc);
-            score += tile.letter_value();
-            multiplier *= tile.word_multiplier;
+            match tile.multiplier {
+                Multiplier::Letter(m) => { 
+                    score += tile.letter_value() * m; }
+                Multiplier::Word(m) => {
+                    score += tile.letter_value();
+                    multiplier *= m; }
+                Multiplier::Unmultiplied => {
+                    score += tile.letter_value(); }
+            }
         }
         (score * multiplier)
     }
@@ -137,21 +148,102 @@ fn grown_words(word: Box<Word>, length: u8) -> Vec<Box<Word>> {
 }
 
 fn find_words(board: Arc<Board>) -> Vec<Box<Word>> {
-    let max_length = 8;
+    let max_length = 5;
     let mut words: Vec<Box<Word>>  = Vec::new();
+    let mut children = vec![];
     for row in 0..4 {
         for col in 0..4 {
             let mut new_word = Word::new(board.clone());
             new_word.add_tile(BoardLocation(row,col));
-            println!["{},{},{}",row,col,new_word.get_string()];
-            words.append(&mut grown_words(Box::new(new_word), max_length));
+            children.push(thread::spawn(move || {
+                println!["{},{},{}",row,col,new_word.get_string()];
+                grown_words(Box::new(new_word), max_length)
+            }));
         }
     } 
+
+    for child in children {
+        match child.join() {
+            Ok(ref mut result) => words.append(result),
+            Err(_) => panic!["Test"],
+        }
+    }
     
     words
 }
 
+fn adbshell(command: String) {
+    let output = Command::new("/opt/android-sdk/platform-tools/adb")
+        .arg("shell")
+        .arg(format!("{}", command))
+        .output()
+        .expect("Failed to execute ADB Shell command");
+}
 
+fn adbscreenshot() {
+    let take_screenshot = Command::new("/opt/android-sdk/platform-tools/adb")
+        .arg("shell")
+        .arg("/system/bin/screencap")
+        .arg("-p")
+        .arg("/sdcard/screenshot.png")
+        .output();
+
+    let copy_screenshot = Command::new("/opt/android-sdk/platform-tools/adb")
+        .arg("pull")
+        .arg("/sdcard/screenshot.png")
+        .arg("/tmp/screenshot.png")
+        .output();
+}
+
+fn compare_images() {
+    let image1 = image::open(&Path::new("/tmp/w1.png")).unwrap();
+    let image2 = image::open(&Path::new("/tmp/s2.png")).unwrap();
+
+    // These two lines produce hashes with 64 bits (8 ** 2),
+    // using the Gradient hash, a good middle ground between 
+    // the performance of Mean and the accuracy of DCT.
+    let hash1 = ImageHash::hash(&image1, 8, HashType::Gradient);
+    let hash2 = ImageHash::hash(&image2, 8, HashType::Gradient);
+
+    println!("Image1 hash: {}", hash1.to_base64());
+    println!("Image2 hash: {}", hash2.to_base64());
+
+    println!("% Difference: {}", hash1.dist_ratio(&hash2));
+
+
+}
+
+enum Multiplier {
+    Word(u16),
+    Letter(u16),
+    Unmultiplied,
+}
+
+fn get_board_from_image(img: DynamicImage) {
+    let rownums = [668, 1008, 1340, 1678];
+    let colnums = [40, 378, 716, 1050];
+
+    for row in rownums.iter() {
+        for col in colnums.iter() {
+            //recognize_tile(row, col);
+        }
+    }
+}
+
+fn recognize_image_tile(start_row: u32, start_col: u32, img: u32) {
+    //let multiplier_img = imageops::crop(img,
+                                        //start_row,
+                                        //start_col,
+                                        //start_row + 100, 
+                                        //start_col + 100);
+ 
+    //let letter_img = imageops::crop(img,
+                                    //start_row + 100,
+                                    //start_col + 100,
+                                    //start_row + 260,
+                                    //start_col + 260);
+
+}
 
 fn main() {
     let path = Path::new("enable1.txt");
@@ -173,22 +265,22 @@ fn main() {
         }
     }
 
-    let row1 = [Tile::new("o".to_string(), 1, 1),
-                Tile::new("e".to_string(), 3, 1),
-                Tile::new("i".to_string(), 3, 1),
-                Tile::new("j".to_string(), 1, 1)];
-    let row2 = [Tile::new("r".to_string(), 1, 1),
-                Tile::new("e".to_string(), 1, 3),
-                Tile::new("c".to_string(), 3, 1),
-                Tile::new("r".to_string(), 1, 1)];
-    let row3 = [Tile::new("d".to_string(), 1, 1),
-                Tile::new("a".to_string(), 1, 1),
-                Tile::new("s".to_string(), 1, 1),
-                Tile::new("a".to_string(), 1, 1)];
-    let row4 = [Tile::new("r".to_string(), 1, 1),
-                Tile::new("i".to_string(), 1, 1),
-                Tile::new("t".to_string(), 1, 1),
-                Tile::new("e".to_string(), 1, 1)];
+    let row1 = [Tile::new("o".to_string(), Multiplier::Unmultiplied),
+                Tile::new("e".to_string(), Multiplier::Letter(3)),
+                Tile::new("i".to_string(), Multiplier::Letter(3)),
+                Tile::new("j".to_string(), Multiplier::Unmultiplied)];
+    let row2 = [Tile::new("r".to_string(), Multiplier::Unmultiplied),
+                Tile::new("e".to_string(), Multiplier::Word(3)),
+                Tile::new("c".to_string(), Multiplier::Letter(3)),
+                Tile::new("r".to_string(), Multiplier::Unmultiplied)];
+    let row3 = [Tile::new("d".to_string(), Multiplier::Unmultiplied),
+                Tile::new("a".to_string(), Multiplier::Unmultiplied),
+                Tile::new("s".to_string(), Multiplier::Unmultiplied),
+                Tile::new("a".to_string(), Multiplier::Unmultiplied)];
+    let row4 = [Tile::new("r".to_string(), Multiplier::Unmultiplied),
+                Tile::new("i".to_string(), Multiplier::Unmultiplied),
+                Tile::new("t".to_string(), Multiplier::Unmultiplied),
+                Tile::new("e".to_string(), Multiplier::Unmultiplied)];
 
     let board = Board{ grid: [row1, row2, row3, row4] };
     let mut potential_words = find_words(Arc::new(board));
@@ -196,6 +288,11 @@ fn main() {
     potential_words.retain(|x| words.contains(&x.get_string()));
     potential_words.sort_by(|a,b| a.get_score().cmp(&b.get_score()));
     for word in potential_words {
-        println!["{}, {}",word.get_string(), word.get_score()]
+        println!["{}, {}",word.get_string(), word.get_score()];
     }
+
+    let image = image::open(&Path::new("/tmp/screenshot.png")).unwrap();
+    get_board_from_image(image);
+
+
 }

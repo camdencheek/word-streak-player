@@ -1,0 +1,2 @@
+S='sendevent /dev/input/event1'
+adb shell "$S 3 57 100;$S 3 48 15;$S 3 58 191;$S 3 53 437;$S 3 54 582;$S 0 0 0;$S 3 57 -1;$S 0 0 0;"
