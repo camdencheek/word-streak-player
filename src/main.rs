@@ -230,14 +230,18 @@ fn get_multiplier_hashes() -> Vec<(ImageHash,Multiplier)> {
         let multiplier_image = image::open(&Path::new(&format!("images/{}.png",multiplier))).unwrap();
 
         let multiplier_hash = ImageHash::hash(&multiplier_image, 8, HashType::Gradient);
-        multiplier_hashes.push((multiplier_hash, match multiplier {
-            "dl" => Multiplier::Letter(2),
-            "tl" => Multiplier::Letter(3),
-            "dw" => Multiplier::Word(2),
-            "tw" => Multiplier::Word(3),
-            "un" => Multiplier::Unmultiplied ,
-            _ => panic!("Not a proper multiplier string")
-        }));
+        multiplier_hashes.push(
+            (   multiplier_hash, 
+                match multiplier {
+                    "dl" => Multiplier::Letter(2),
+                    "tl" => Multiplier::Letter(3),
+                    "dw" => Multiplier::Word(2),
+                    "tw" => Multiplier::Word(3),
+                    "un" => Multiplier::Unmultiplied ,
+                    _ => panic!("Not a proper multiplier string")
+                }
+            )
+        );
     }
 
     multiplier_hashes
@@ -300,7 +304,8 @@ fn get_board_from_image(img: DynamicImage) -> Board {
     Board::new(board_vec)
 }
 
-fn recognize_image_tile(start_row: u32, start_col: u32, 
+fn recognize_image_tile(start_row: u32, 
+                        start_col: u32, 
                         img: &DynamicImage, 
                         multiplier_hashes: Arc<Vec<(ImageHash,Multiplier)>>,
                         letter_hashes: Arc<Vec<(ImageHash,String)>>)
