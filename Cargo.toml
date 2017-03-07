@@ -4,4 +4,7 @@ version = "0.1.0"
 authors = ["Camden Cheek <ccheek22@gmail.com>"]
 
 [dependencies]
-adb = "0.0.0"
+image = "0.12.3"
+[dependencies.img_hash]
+img_hash = "1.0.0"
+features = ["rust-image"]

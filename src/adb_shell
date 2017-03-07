@@ -1,0 +1,8 @@
+adb shell sendevent /dev/input/event1 3 57 100
+adb shell sendevent /dev/input/event1 3 48 15
+adb shell sendevent /dev/input/event1 3 58a 191
+adb shell sendevent /dev/input/event1 3 53 347
+adb shell sendevent /dev/input/event1 3 54 482
+adb shell sendevent /dev/input/event1 0 0 0
+adb shell sendevent /dev/input/event1 3 57 0
+adb shell sendevent /dev/input/event1 0 0 0
