@@ -8,10 +8,10 @@ use std::path::Path;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::thread;
-use std::thread::JoinHandle;
 use std::process::Command;
 use img_hash::{ImageHash, HashType};
-use image::{ImageBuffer,DynamicImage,imageops};
+use image::{DynamicImage,imageops};
+
 
 
 struct Tile {
@@ -38,12 +38,8 @@ impl Tile {
     }
 }
 
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 struct BoardLocation(usize,usize);
-
-impl Clone for BoardLocation {
-    fn clone(&self) -> BoardLocation { *self }
-}
 
 struct Board {
     grid: Vec<Vec<Tile>>,
@@ -131,25 +127,27 @@ impl Word {
     }
 }
 
+impl Clone for Word {
+    fn clone(&self) -> Word {
+        let mut new_word = Word::new(self.board.clone());
+        for loc in &self.loc_vector {
+            new_word.add_tile(loc.clone());
+        }
+        new_word
+    }
+}
+
 fn grown_words(word: Box<Word>, length: u8, word_list: Arc<HashSet<String>>) -> Vec<Box<Word>> {
     let mut new_words: Vec<Box<Word>> = Vec::new();
     for adjacent in word.board.get_adjacent_tiles(&word.loc_vector.last().unwrap()) {
         if !word.uses_loc(&adjacent) {
-            let mut new_word = Word::new(word.board.clone());
-            for loc in &word.loc_vector {
-                new_word.add_tile(*loc);
-            }
+            let mut new_word = word.clone();
             new_word.add_tile(adjacent);
             if word_list.contains(&new_word.get_string()) {
-                new_words.push(Box::new(new_word));
+                new_words.push(new_word.clone());
             }
-            let mut new_new_word = Word::new(word.board.clone());
-            for loc in &word.loc_vector {
-                new_new_word.add_tile(*loc);
-            }
-            new_new_word.add_tile(adjacent);
             if length-1 != 1 {
-                new_words.append(&mut grown_words(Box::new(new_new_word), length-1, word_list.clone()));
+                new_words.append(&mut grown_words(new_word, length-1, word_list.clone()));
             }
         }
     }
@@ -192,6 +190,7 @@ fn adbshell(command: String) {
 }
 
 fn adbscreenshot() {
+
     let take_screenshot = Command::new("/opt/android-sdk/platform-tools/adb")
         .arg("shell")
         .arg("/system/bin/screencap")
@@ -206,21 +205,11 @@ fn adbscreenshot() {
         .output();
 }
 
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 enum Multiplier {
     Word(u16),
     Letter(u16),
     Unmultiplied,
-}
-
-impl Clone for Multiplier {
-    fn clone(&self) -> Multiplier {
-        match self {
-            &Multiplier::Letter(l) => Multiplier::Letter(l),
-            &Multiplier::Word(w) => Multiplier::Word(w),
-            &Multiplier::Unmultiplied => Multiplier::Unmultiplied,
-        }
-    }
 }
 
 fn get_multiplier_hashes() -> Vec<(ImageHash,Multiplier)> {
