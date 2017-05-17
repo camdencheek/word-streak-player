@@ -14,13 +14,14 @@ use image::{DynamicImage,imageops};
 
 
 
+#[derive(Copy, Clone)]
 struct Tile {
-    letter: String,
+    letter: char,
     multiplier: Multiplier,
 }
 
 impl Tile {
-    pub fn new(letter: String, multiplier: Multiplier ) -> Tile {
+    pub fn new(letter: char, multiplier: Multiplier ) -> Tile {
         Tile {
             letter: letter,
             multiplier: multiplier,
@@ -28,12 +29,12 @@ impl Tile {
     }
 
     fn letter_value(&self) -> u16 {
-        match self.letter.as_str() {
-            "a" => 1, "b" => 4, "c" => 4, "d" => 2, "e" => 1, "f" => 4,
-            "g" => 3, "h" => 3, "i" => 1, "j" => 10, "k" => 5, "l" => 2,
-            "m" => 4, "n" => 2, "o" => 1, "p" => 4, "qu" => 10, "r" => 1,
-            "s" => 1, "t" => 1, "u" => 2, "v" => 5, "w" => 4, "x" => 10,
-            "y" => 3, "z" => 10, _ => panic!("self.letter is not a valid tile letter"),
+        match self.letter {
+            'a' => 1, 'b' => 4, 'c' => 4, 'd' => 2, 'e' => 1, 'f' => 4,
+            'g' => 3, 'h' => 3, 'i' => 1, 'j' => 10, 'k' => 5, 'l' => 2,
+            'm' => 4, 'n' => 2, 'o' => 1, 'p' => 4, 'q' => 10, 'r' => 1,
+            's' => 1, 't' => 1, 'u' => 2, 'v' => 5, 'w' => 4, 'x' => 10,
+            'y' => 3, 'z' => 10, _ => panic!("self.letter is not a valid tile letter"),
         } 
     }
 }
@@ -42,13 +43,19 @@ impl Tile {
 struct BoardLocation(usize,usize);
 
 struct Board {
-    grid: Vec<Vec<Tile>>,
+    grid: [[Tile; 4]; 4],
 }
 
 impl Board {
     fn new(board_vec: Vec<Vec<Tile>>) -> Board {
+        let mut board_array = [[Tile{letter: ' ', multiplier: Multiplier::Letter(2)}; 4]; 4];
+        for i in 0..4 {
+            for j in 0..4 {
+                board_array[i][j] = board_vec[i][j];
+            }
+        }
         Board {
-            grid: board_vec,
+            grid: board_array,
         }
     }
 
@@ -90,7 +97,7 @@ impl Word {
     fn get_string(&self) -> String {
         let mut word = "".to_string();
         for loc in &self.loc_vector {
-            word += &self.board.get_tile(loc).letter
+            word.push(self.board.get_tile(loc).letter)
         }
         word
     }
@@ -232,16 +239,16 @@ fn get_multiplier_hashes() -> Vec<(ImageHash,Multiplier)> {
     multiplier_hashes
 }
 
-fn get_letter_hashes() -> Vec<(ImageHash,String)> {
-    let letters = vec!["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o",
-                        "p","qu","r","s","t","u","v","w","x","y","z"];
+fn get_letter_hashes() -> Vec<(ImageHash,char)> {
+    let letters = vec!['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o',
+                        'p','q','r','s','t','u','v','w','x','y','z'];
 
-    let mut letter_hashes: Vec<(ImageHash,String)> = vec![];
+    let mut letter_hashes: Vec<(ImageHash,char)> = vec![];
     for letter in letters {
         let letter_image = image::open(&Path::new(&format!("images/{}.png",letter))).unwrap();
 
         let letter_hash = ImageHash::hash(&letter_image, 8, HashType::Gradient);
-        letter_hashes.push((letter_hash, letter.to_string()));
+        letter_hashes.push((letter_hash, letter));
     }
 
     letter_hashes
@@ -293,7 +300,7 @@ fn recognize_image_tile(start_row: u32,
                         start_col: u32, 
                         img: &DynamicImage, 
                         multiplier_hashes: Arc<Vec<(ImageHash,Multiplier)>>,
-                        letter_hashes: Arc<Vec<(ImageHash,String)>>)
+                        letter_hashes: Arc<Vec<(ImageHash,char)>>)
                         -> Tile {
     let mut image1 = img.clone();
     let mut image2 = img.clone();
@@ -322,12 +329,12 @@ fn recognize_image_tile(start_row: u32,
 
     let letter_hash = ImageHash::hash(&letter_img, 8, HashType::Gradient);
     let mut min_difference_letter = 1.0;
-    let mut min_letter: String = "".to_string();
+    let mut min_letter: char = ' ';
     for hash in letter_hashes.iter() {
         let difference = letter_hash.dist_ratio(&hash.0);
         if difference < min_difference_letter {
             min_difference_letter = difference;
-            min_letter = hash.1.clone();
+            min_letter = hash.1;
         }
     }
  
