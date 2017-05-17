@@ -56,11 +56,7 @@ impl Board {
         let mut adjacent: Vec<BoardLocation> = Vec::new();
         for row in (loc.0 as isize)-1..(loc.0 as isize)+2 {
             for col in (loc.1 as isize)-1..(loc.1 as isize)+2 {
-                if row < 0 || row > 3 || col < 0 || col > 3 {
-                    continue;
-                } else if row == (loc.0 as isize) && col == (loc.1 as isize) {
-                    continue;
-                } else {
+                if !(row < 0 || row > 3 || col < 0 || col > 3) {
                     adjacent.push(BoardLocation(row as usize,col as usize))
                 }
             }
@@ -76,11 +72,11 @@ impl Board {
 
 struct Word {
     loc_vector: Vec<BoardLocation>,
-    board: Rc<Board>,
+    board: Arc<Board>,
 }
 
 impl Word {
-    pub fn new(board: Rc<Board>) -> Word {
+    pub fn new(board: Arc<Board>) -> Word {
         Word {
             loc_vector: Vec::new(),
             board: board,
@@ -131,7 +127,7 @@ impl Clone for Word {
     fn clone(&self) -> Word {
         let mut new_word = Word::new(self.board.clone());
         for loc in &self.loc_vector {
-            new_word.add_tile(loc.clone());
+            new_word.add_tile(*loc);
         }
         new_word
     }
@@ -260,13 +256,13 @@ fn get_board_from_image(img: DynamicImage) -> Board {
     let image = Arc::new(img);
     
     let mut board_vec_children: Vec<Vec<thread::JoinHandle<Tile>>> = vec![];
-    for row in rownums.iter() {
+    for row in &rownums {
         let mut board_row_children= vec![];
-        for col in colnums.iter() {
+        for col in &colnums {
             let letter_hashes_clone = letter_hashes.clone();
             let multiplier_hashes_clone = multiplier_hashes.clone();
-            let row_clone = row.clone();
-            let col_clone = col.clone();
+            let row_clone = *row;
+            let col_clone = *col;
             let image_clone = image.clone();
             board_row_children.push(thread::spawn(move || {
                 recognize_image_tile(
