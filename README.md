@@ -1,6 +1,6 @@
 # Word Streak Player
 
-This project ideally plays the gmae "Word Sterak - Words with Friends" for automatically. 
+This project ideally plays the game "Word Streak - Words with Friends" for automatically. 
 This was primarily intended for me to learn the basics of the Rust programming language. 
 
 ## Parts
